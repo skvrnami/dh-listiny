@@ -17,6 +17,7 @@ library(ggbiplot)
 
 ## read the data
 data_list <- read_ods("data/otakari.ods", sheet = 1) # zminka v listinach
+data_listiny <- read_ods("data/otakari.ods", sheet = 2)
 
 ## rename the columns
 colnames(data_list)[1] <- "person"
@@ -85,11 +86,15 @@ source("ggbiplot_interactive.R")
 g <- ggbiplot_interactive(pca, obs.scale = 1, var.scale = 1, 
               ellipse = TRUE, 
               circle = TRUE, 
-              point_labels = data_list$person)
+              point_labels = data_list$person, 
+              arrow_labels = paste0("ID ", data_listiny$id, ": ",
+                                    data_listiny$vydavatel, " (", 
+                                    data_listiny$year, ", ", 
+                                    data_listiny$place, ")"))
 # g <- g + scale_color_discrete(name = '')
 g <- g + theme(legend.direction = 'horizontal', 
                legend.position = 'top')
-ggiraph(code = print(g))
+ggiraph(code = print(g), hover_css = "fill:red;stroke:red;")
 ```
 
 
@@ -100,7 +105,9 @@ ggiraph(code = print(g))
 data_sub <- data_list[rowSums(data_list[, 2:74]) >= 5, ]
 
 # remove columns with zero variance
-data_sub <- data_sub[, c(TRUE, colSums(data_sub[, 2:74]) > 0)]    
+data_sub <- data_sub[, c(TRUE, colSums(data_sub[, 2:74]) > 0)]
+
+data_listiny_sub <- subset(data_listiny, id %in% colnames(data_sub))
 
 pca <- prcomp(data_sub[, 2:ncol(data_sub)],
               center = TRUE) 
@@ -113,11 +120,16 @@ ggscreeplot(pca)
 g <- ggbiplot_interactive(pca, 
                           obs.scale = 1, var.scale = 1, 
                           point_labels = data_sub$person,
+                          arrow_labels = paste0("ID ", 
+                                                data_listiny_sub$id, ": ",
+                                                data_listiny_sub$vydavatel, " (", 
+                                    data_listiny_sub$year, ", ", 
+                                    data_listiny_sub$place, ")"),
                           ellipse = TRUE, 
                           circle = TRUE)
 g <- g + theme(legend.direction = 'horizontal', 
                legend.position = 'top')
-ggiraph(code = print(g))
+ggiraph(code = print(g), hover_css = "fill:red;stroke:red;")
 ```
 
 

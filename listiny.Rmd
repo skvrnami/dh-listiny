@@ -90,7 +90,7 @@ g <- ggbiplot_interactive(pca, obs.scale = 1, var.scale = 1,
 # g <- g + scale_color_discrete(name = '')
 g <- g + theme(legend.direction = 'horizontal', 
                legend.position = 'top')
-ggiraph(code = print(g))
+ggiraph(code = print(g), hover_css = "fill:red;stroke:red;")
 ```
 
 ### Analýza hlavních komponent šlechticů s více než 5 zmínkami
@@ -112,7 +112,7 @@ g <- ggbiplot_interactive(pca, point_labels = data_sub$kdo,
 # g <- g + scale_color_discrete(name = '')
 g <- g + theme(legend.direction = 'horizontal', 
                legend.position = 'top')
-ggiraph(code = print(g))
+ggiraph(code = print(g), hover_css = "fill:red;stroke:red;")
 ```
 
 ### Shluková analýza šlechticů s více než 5 výskyty

@@ -6,7 +6,9 @@ ggbiplot_interactive <- function(pcobj, choices = 1:2, scale = 1, pc.biplot = TR
                      circle = FALSE, circle.prob = 0.69, 
                      varname.size = 3, varname.adjust = 1.5, 
                      varname.abbrev = FALSE, 
-                     point_labels, ...)
+                     point_labels = NULL, 
+                     arrow_labels = NULL, 
+                     ...)
 {
     library(ggplot2)
     library(ggiraph)
@@ -131,9 +133,11 @@ ggbiplot_interactive <- function(pcobj, choices = 1:2, scale = 1, pc.biplot = TR
     } else {
         if(!is.null(df.u$groups)) {
             g <- g + geom_point_interactive(aes(color = groups, 
-                                                tooltip = point_labels), alpha = alpha)
+                                                tooltip = point_labels, 
+                                                data_id = point_labels), alpha = alpha)
         } else {
-            g <- g + geom_point_interactive(aes(tooltip = point_labels), alpha = alpha)      
+            g <- g + geom_point_interactive(aes(tooltip = point_labels, 
+                                                data_id = point_labels), alpha = alpha)      
         }
     }
     
@@ -158,11 +162,21 @@ ggbiplot_interactive <- function(pcobj, choices = 1:2, scale = 1, pc.biplot = TR
     
     # Label the variable axes
     if(var.axes) {
-        g <- g + 
-            geom_text(data = df.v, 
-                      aes(label = varname, x = xvar, y = yvar, 
-                          angle = angle, hjust = hjust), 
-                      color = 'darkred', size = varname.size)
+        if (is.null(arrow_labels)) {
+            g <- g + 
+                geom_text(data = df.v, 
+                          aes(label = varname, x = xvar, y = yvar, 
+                              angle = angle, hjust = hjust),
+                          color = 'darkred', size = varname.size)
+        } else {
+            g <- g + 
+                geom_text_interactive(data = df.v, 
+                                      aes(label = varname, x = xvar, y = yvar, 
+                                          angle = angle, hjust = hjust, 
+                                          tooltip = arrow_labels, 
+                                          data_id = arrow_labels), 
+                                      color = 'darkred', size = varname.size)
+        }
     }
     # Change the name of the legend for groups
     # if(!is.null(groups)) {
