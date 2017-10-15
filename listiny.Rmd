@@ -1,0 +1,145 @@
+---
+title: "Zmínky šlechticů na listinách (do r. 1197)"
+author: "Michael Škvrňák"
+date: "`r format(Sys.time(), '%d.%m.%Y')`"
+output: html_document
+---
+
+## Data
+
+Data obsahují zmínky o šlechticích zaznamenaných v listinách vydaných mezi lety X a 1197. 
+(Bias proti bezvýznamným šlechticům?)
+
+Pro zjednodušení analýzy jsou tituly a funkce uvedené v listinách ignorovány a dále se 
+pracuje pouze s tím, zda se daný šlechtic sněmu účastnil nebo ne (resp. jestli jeho účast
+byla zaznamenána).
+
+```{r, message = FALSE, warning = FALSE}
+library(magrittr)
+library(dplyr)
+library(ggplot2)
+library(ggbiplot)
+library(ggdendro)
+library(ggiraph)
+
+data <- read.csv("data/ranystredovek-2.csv", na.strings = "", 
+                 stringsAsFactors = FALSE)
+
+## Rekodovoat vsechny missing data jako 0 (neúčast)
+data[is.na(data)] <- 0
+
+## Konvertovat vsechny sloupce na numericke hodnoty
+data[, 2:ncol(data)] <- sapply(data[, 2:ncol(data)], as.numeric)
+
+## Vsechny NA hodnoty vznikle konverzi rekodovat na ucast (=osoby, ktere mely funkce nebo
+## jejich ucast byla nejista)
+data[is.na(data)] <- 1
+```
+
+## Charakteristika dat
+Data obsahují záznamy o zmínkách o ``r nrow(data)`` osobách na ``r ncol(data) - 1`` listinách. 
+
+### Šlechticové, kteří jsou zmínění na listinách
+Data můžeme charakterizovat podle zaznamenané účasti šlechticů na listinách. 
+V tabulce níže můžeme vidět šlechtice s největším počtem zmínek. 
+```{r}
+ucast <- data.frame(kdo = data$kdo, 
+                    n_listin = rowSums(data[, 2:ncol(data)]))
+
+ucast %>% arrange(desc(n_listin)) %>% head(., 10)
+```
+
+Histogram níže ukazuje, že 300 šlechticů se v listinách objevuje pouze jednou, zatímco
+nejčastěji zmíněný šlechtic se objevuje na 13 listinách.
+
+```{r}
+ggplot(ucast, aes(n_listin)) + geom_histogram(breaks = seq(1, max(ucast$n_listin))) + 
+    labs(x = "Počet listin", y = "Počet šlechticů", title = "Zmínky o šlechticích na listinách")
+```
+
+### Listiny s největším počtem zmínek šlechticů
+Obdobně můžeme data charakterizovat podle počtu zmíněných účastníků na jednotlivých listinách.
+Histogram níže ukazuje distribuce listin podle počtu zmínek šlechticů, ze kterého vyplývá, 
+že na většině listin je zmíněno méně než 20 šlechticů. 
+A listiny s více než 40 zmínkami osob jsou mimořádné.
+
+```{r}
+ucastnici <- colSums(data[, 2:ncol(data)])
+ggplot(NULL, aes(ucastnici)) + geom_histogram() + 
+    labs(x = "Počet účastníků sněmů", y = "Počet sněmů", title = "Distribuce sněmů podle účasti")
+
+```
+
+## Analýza hlavních komponent (PCA)
+```{r}
+pca <- prcomp(data[, 2:ncol(data)],
+              center = TRUE,
+              scale. = TRUE) 
+# print(pca)
+ggscreeplot(pca)
+summary(pca)
+```
+
+
+```{r, message=FALSE}
+source("ggbiplot_interactive.R")
+g <- ggbiplot_interactive(pca, obs.scale = 1, var.scale = 1, 
+              ellipse = TRUE, 
+              circle = TRUE, 
+              point_labels = data$kdo)
+# g <- g + scale_color_discrete(name = '')
+g <- g + theme(legend.direction = 'horizontal', 
+               legend.position = 'top')
+ggiraph(code = print(g))
+```
+
+### Analýza hlavních komponent šlechticů s více než 5 zmínkami
+```{r}
+# subset persons with more than 5 occurences
+data_sub <- data[rowSums(data[, 2:ncol(data)]) >= 5, ]
+
+# remove columns with zero variance
+data_sub <- data_sub[, c(TRUE, colSums(data_sub[, 2:ncol(data)]) > 0)]    
+
+pca <- prcomp(data_sub[, 2:ncol(data_sub)],
+              center = TRUE) 
+```
+
+```{r}
+g <- ggbiplot_interactive(pca, point_labels = data_sub$kdo,
+              ellipse = TRUE, 
+              circle = TRUE)
+# g <- g + scale_color_discrete(name = '')
+g <- g + theme(legend.direction = 'horizontal', 
+               legend.position = 'top')
+ggiraph(code = print(g))
+```
+
+### Shluková analýza šlechticů s více než 5 výskyty
+```{r}
+rownames(data_sub) <- paste0(as.character(1:nrow(data_sub)), data_sub$kdo,
+                              sep = " ")
+clust <- hclust(dist(data_sub[, 2:ncol(data_sub)], method = "euclidean"))
+
+#convert cluster object to use with ggplot
+dendr <- dendro_data(clust, type="rectangle")
+
+ # convert for ggplot
+groups <- cutree(clust, k=3)
+groups.df <- data.frame(label=names(groups), cluster=factor(groups))
+# dendr[["labels"]] has the labels, merge with clust.df based on label column
+dendr[["labels"]] <- merge(dendr[["labels"]], groups.df, by="label")
+
+#your own labels (now rownames) are supplied in geom_text() and label=label
+ggplot() +
+  geom_segment(data=segment(dendr), aes(x=x, y=y, xend=xend, yend=yend)) +
+  geom_text(data=label(dendr), aes(x=x, y=y, label=label, hjust=0, colour = cluster), size=3) +
+  coord_flip() + scale_y_reverse(expand=c(0.2, 0)) +
+  theme(axis.line.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_rect(fill="white"),
+        panel.grid=element_blank())
+
+```
